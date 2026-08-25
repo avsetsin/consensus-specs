@@ -6,7 +6,7 @@
 - [Types](#types)
   - [New `ProposerIndices`](#new-proposerindices)
   - [New `ProposerLookahead`](#new-proposerlookahead)
-- [Configuration](#configuration)
+- [Configs](#configs)
   - [Blob schedule](#blob-schedule)
 - [Beacon chain state transition function](#beacon-chain-state-transition-function)
   - [Block processing](#block-processing)
@@ -67,7 +67,7 @@ class ProposerLookahead(Vector[ValidatorIndex, (MIN_SEED_LOOKAHEAD + 1) * SLOTS_
     """
 ```
 
-## Configuration
+## Configs
 
 ### Blob schedule
 
@@ -326,7 +326,7 @@ def compute_fork_digest(
         bytes(
             xor(
                 base_digest,
-                hash(
+                sha256(
                     uint_to_bytes(Uint64(blob_parameters.epoch))
                     + uint_to_bytes(Uint64(blob_parameters.max_blobs_per_block))
                 ),
@@ -345,7 +345,7 @@ def compute_proposer_indices(
     Return the proposer indices for the given ``epoch``.
     """
     start_slot = compute_start_slot_at_epoch(epoch)
-    seeds = [hash(seed + uint_to_bytes(Slot(start_slot + i))) for i in range(SLOTS_PER_EPOCH)]
+    seeds = [sha256(seed + uint_to_bytes(Slot(start_slot + i))) for i in range(SLOTS_PER_EPOCH)]
     return ProposerIndices(compute_proposer_index(state, indices, seed) for seed in seeds)
 ```
 
@@ -458,7 +458,9 @@ def process_pending_deposits(state: BeaconState) -> None:
         # Regardless of how the deposit was handled, we move on in the queue.
         next_deposit_index += 1
 
-    state.pending_deposits = state.pending_deposits[next_deposit_index:] + deposits_to_postpone
+    state.pending_deposits = PendingDeposits(
+        state.pending_deposits[next_deposit_index:] + deposits_to_postpone
+    )
 
     # Accumulate churn only if the churn limit has been hit.
     if is_churn_limit_reached:
